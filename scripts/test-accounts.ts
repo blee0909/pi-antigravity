@@ -112,11 +112,16 @@ async function testRemovesAccount(): Promise<void> {
     remaining.some((entry) => entry.active),
     "a remaining account was not activated",
   );
-  assert(
-    (statSync(join(process.env.PI_CODING_AGENT_DIR!, "antigravity-accounts.json")).mode & 0o777) ===
-      0o600,
-    "account store permissions are not owner-only",
-  );
+  // POSIX mode bits are meaningless on Windows/NTFS (chmod is a no-op; privacy
+  // comes from the profile directory's ACLs), so only assert them elsewhere.
+  if (process.platform !== "win32") {
+    assert(
+      (statSync(join(process.env.PI_CODING_AGENT_DIR!, "antigravity-accounts.json")).mode &
+        0o777) ===
+        0o600,
+      "account store permissions are not owner-only",
+    );
+  }
 }
 
 await testStoresAndSwitchesAccounts();

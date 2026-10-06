@@ -28,7 +28,7 @@ export type DynamicModelInfo = {
 };
 
 export type CallbackServer = {
-  server: Server;
+  servers: Server[];
   waitForCode: () => Promise<{ code: string; state: string }>;
   cleanup: () => void;
 };

@@ -10,7 +10,7 @@ import { getApiKey } from "../auth/index.js";
 import { DEFAULT_ENDPOINT, fetchAvailableModelsCatalog, parseApiKey } from "../client/index.js";
 import { ANTIGRAVITY_API } from "../types/types.js";
 import { antigravityEnv, isRecord } from "../utils/util.js";
-import { buildAntigravityCatalog, resolvedCatalog, type AntigravityCatalog } from "./grouping.js";
+import { buildAntigravityCatalog, resolvedCatalog, type AntigravityCatalog, type AntigravityModelConfig } from "./grouping.js";
 import {
   ANTIGRAVITY_MODELS,
   ANTIGRAVITY_ROUTING,
@@ -144,7 +144,7 @@ function apiKeyFromCredential(credential: Credential | undefined): string | unde
   return undefined;
 }
 
-function toStoredModels(models: ProviderModelConfig[]): Model<Api>[] {
+function toStoredModels(models: AntigravityModelConfig[]): Model<Api>[] {
   return models.map((model) => ({
     ...model,
     api: ANTIGRAVITY_API,

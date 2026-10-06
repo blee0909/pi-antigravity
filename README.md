@@ -13,6 +13,17 @@ Want to equip Pi with MCP, web access, subagents, and todos? Install [`pi-essent
 
 > **Unofficial integration.** This project is not affiliated with or endorsed by Google. Use it only with an account and services you are authorized to access, and review its source before granting OAuth permissions.
 
+## Pi 1.x fork notice
+
+This fork ports the extension to the **Pi Coding Agent 1.x extension API** (verified against pi **1.0.4**):
+
+- pi-ai 1.x widened `ProviderModelConfig` into a chat/image/classifier union; the model catalog is now pinned to the chat member (`AntigravityModelConfig`).
+- The OAuth callback server binds **both** loopback stacks (127.0.0.1 and ::1). The redirect URI uses `localhost`, which some systems (notably Windows) resolve to `::1` first — the previous single-stack bind made `/login antigravity` time out there.
+- Windows fixes for development: `scripts/run-ts.mjs` passes a `file://` URL to `--import` (bare `E:\…` paths crash the ESM loader), and the POSIX-only account-store permission assertion is skipped on win32.
+- Peer dependencies are now `@earendil-works/pi-ai` / `@earendil-works/pi-coding-agent` **>=1.0.0**.
+
+Install from this fork: `pi install git:github.com/blee0909/pi-antigravity`
+
 ## Contents
 
 - [Requirements](#requirements)
@@ -27,7 +38,7 @@ Want to equip Pi with MCP, web access, subagents, and todos? Install [`pi-essent
 
 ## Requirements
 
-- Pi Coding Agent and Pi AI version **0.80.0 or later**
+- Pi Coding Agent and Pi AI version **1.0.0 or later**
 - A Google account that can use the relevant Cloud Code Assist / Antigravity services
 - A browser to complete the Google sign-in. Same-machine is best (the browser hits the local callback automatically); on a remote/headless machine, complete sign-in anywhere and paste the resulting callback URL back into Pi (see [Troubleshooting](#troubleshooting)).
 

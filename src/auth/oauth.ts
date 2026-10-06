@@ -1,5 +1,10 @@
 import { createHash, randomBytes } from "node:crypto";
-import { createServer, type Server } from "node:http";
+import {
+  createServer,
+  type IncomingMessage,
+  type Server,
+  type ServerResponse,
+} from "node:http";
 import { fetch as oauthFetch } from "undici";
 import type { OAuthCredentials, OAuthLoginCallbacks } from "@earendil-works/pi-ai";
 import { defaultProjectId, loadCodeAssist } from "../client/client.js";
@@ -111,7 +116,7 @@ function startCallbackServer(expectedState: string): Promise<CallbackServer> {
       fn();
     };
 
-    const server = createServer((req, res) => {
+    const handler = (req: IncomingMessage, res: ServerResponse) => {
       if (req.method !== "GET" && req.method !== "HEAD") {
         res.writeHead(405, oauthCallbackHeaders("text/plain; charset=utf-8"));
         res.end("Method Not Allowed");
@@ -151,9 +156,27 @@ function startCallbackServer(expectedState: string): Promise<CallbackServer> {
       res.writeHead(200, oauthCallbackHeaders());
       res.end("Antigravity authentication complete. You can close this window and return to Pi.");
       finish(() => resolveCode({ code, state }));
-    });
+    };
 
-    server.on("error", (err: NodeJS.ErrnoException) => {
+    // The redirect URI uses "localhost", which may resolve to ::1 or 127.0.0.1
+    // depending on the OS resolver order, so bind both loopback stacks.
+    const primary = createServer(handler);
+    const ipv6 = createServer(handler);
+    const servers = [primary, ipv6];
+
+    let closed = false;
+    const close = () => {
+      if (closed) return;
+      closed = true;
+      for (const server of servers) closeServerGracefully(server);
+    };
+    const cleanup = () => {
+      finish(() => rejectCode(new Error("OAuth callback cancelled")));
+      close();
+    };
+
+    primary.on("error", (err: NodeJS.ErrnoException) => {
+      close();
       if (err.code === "EADDRINUSE") {
         reject(
           new Error(
@@ -164,24 +187,20 @@ function startCallbackServer(expectedState: string): Promise<CallbackServer> {
         reject(err);
       }
     });
+    // IPv6 loopback is best-effort: machines without ::1 still log in over IPv4.
+    ipv6.on("error", () => {});
 
-    let closed = false;
-    const close = () => {
-      if (closed) return;
-      closed = true;
-      closeServerGracefully(server);
-    };
-    const cleanup = () => {
-      finish(() => rejectCode(new Error("OAuth callback cancelled")));
-      close();
-    };
+    // IPv4 is the primary listener; each stack starts independently so a
+    // missing or busy ::1 never prevents the IPv4 bind.
+    primary.listen(51121, CALLBACK_HOST);
+    ipv6.listen(51121, "::1");
 
-    server.listen(51121, CALLBACK_HOST, () => {
+    primary.on("listening", () => {
       timeout = setTimeout(() => {
         finish(() => rejectCode(new Error("OAuth callback timed out waiting for browser login")));
         close();
       }, OAUTH_CALLBACK_TIMEOUT_MS);
-      resolve({ server, waitForCode: () => codePromise, cleanup });
+      resolve({ servers, waitForCode: () => codePromise, cleanup });
     });
   });
 }
